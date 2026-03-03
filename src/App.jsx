@@ -8,6 +8,7 @@ import {
   Trash2, PlusCircle, Save, FileText, RotateCcw, Clock,
   Pencil, TableProperties, Activity
 } from 'lucide-react';
+import ReloadPrompt from './ReloadPrompt';
 
 // --- Firebase Configuration ---
 const firebaseConfig = {
@@ -991,6 +992,9 @@ const App = () => {
           </div>
         </div>
       )}
+
+      {/* PWA Update Prompt */}
+      <ReloadPrompt />
     </div>
   );
 };
