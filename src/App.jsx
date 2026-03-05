@@ -6,7 +6,7 @@ import {
   Calendar, CheckCircle2, TrendingUp, UserCircle2, Loader2,
   Sparkles, Volume2, X, Lightbulb, ChevronRight, Settings,
   Trash2, PlusCircle, Save, FileText, RotateCcw, Clock,
-  Pencil, TableProperties, Activity
+  Pencil, TableProperties, Activity, CalendarDays
 } from 'lucide-react';
 import ReloadPrompt from './ReloadPrompt';
 
@@ -444,6 +444,53 @@ const App = () => {
     return new Date(isoString).toLocaleString('id-ID', { day: 'numeric', month: 'short', year: '2-digit' });
   };
 
+  // --- External Integrations ---
+  const handleExportCalendar = () => {
+    const activeTasks = globalData[activeUser];
+    if (!activeTasks) return;
+
+    const allTasksText = [
+      ...activeTasks.weekly.map(t => `- [Mingguan] ${t.label} (Target: ${t.target})`),
+      ...activeTasks.monthly.map(t => `- [Bulanan] ${t.label} (Target: ${t.target})`)
+    ].join('\\n');
+
+    // Create a daily repeating event in standard iCalendar format
+    const icsContent = [
+      'BEGIN:VCALENDAR',
+      'VERSION:2.0',
+      'PRODID:-//FocusCouple//ID',
+      'CALSCALE:GREGORIAN',
+      'BEGIN:VEVENT',
+      `DTSTAMP:${new Date().toISOString().replace(/[-:]/g, '').split('.')[0]}Z`,
+      `DTSTART;VALUE=DATE:${new Date().toISOString().replace(/[-:]/g, '').slice(0, 8)}`,
+      'RRULE:FREQ=DAILY', // Repeat every day
+      `SUMMARY:🎯 FocusCouple Reminders`,
+      `DESCRIPTION:Jangan lupa cek dan selesaikan target kamu hari ini di aplikasi FocusCouple!\\n\\nList Target:\\n${allTasksText}`,
+      'STATUS:CONFIRMED',
+      'BEGIN:VALARM', // Add a push notification reminder
+      'TRIGGER:-PT9H', // Alert at 9 AM (adjust if needed, usually defaults to 9 hours before end of day for all-day events)
+      'ACTION:DISPLAY',
+      'DESCRIPTION:Reminder',
+      'END:VALARM',
+      'END:VEVENT',
+      'END:VCALENDAR'
+    ].join('\\r\\n');
+
+    // Trigger download
+    const blob = new Blob([icsContent], { type: 'text/calendar;charset=utf-8' });
+    const link = document.createElement('a');
+    link.href = URL.createObjectURL(blob);
+    link.download = `FocusCouple_${activeUser}_Tasks.ics`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+
+    // Write log
+    const newData = { ...globalData };
+    newData.logs = addLogEntry(newData, `${activeUser} meng-export tugas ke Google Calendar.`, 'system');
+    saveToCloud(newData);
+  };
+
   if (isLoadingData) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-slate-50">
@@ -579,6 +626,24 @@ const App = () => {
                   <Save size={18} />
                 </button>
               </div>
+            </div>
+
+            {/* Calendar Sync Section */}
+            <div className="bg-gradient-to-br from-indigo-50 to-white rounded-[26px] p-6 border border-indigo-100 shadow-sm relative overflow-hidden">
+              <div className="absolute top-0 right-0 w-32 h-32 bg-indigo-100 rounded-full blur-[40px] opacity-60"></div>
+              <h3 className="font-black text-indigo-900 flex items-center gap-2 mb-2 relative z-10">
+                <CalendarDays size={18} className="text-indigo-600" />
+                Push Notifications (Gratis)
+              </h3>
+              <p className="text-xs text-indigo-700/80 mb-4 leading-relaxed relative z-10 font-medium">
+                Dapatkan notifikasi pengingat otomatis setiap pagi di HP-mu dengan menghubungkan daftar tugas ke <b>Google Calendar</b> atau <b>Apple Calendar</b>.
+              </p>
+              <button
+                onClick={handleExportCalendar}
+                className="w-full py-3.5 bg-indigo-600 text-white rounded-xl font-bold flex items-center justify-center gap-2 shadow-lg shadow-indigo-200 hover:bg-indigo-700 transition-all active:scale-95 relative z-10"
+              >
+                <CalendarDays size={18} /> Export & Sync to Calendar
+              </button>
             </div>
 
             {/* Add / Edit Task Section */}
